@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<flow name="dw-evaluate-logic-flow" doc:id="d882e1cf-404b-4ebd-9ef8-b43c43399018">
+		<flow-ref doc:name="dw-check-challenge-number-flow" doc:id="16efc88b-4722-4053-845e-aea65d2d6990" name="dw-check-challenge-number-flow" />
+		<flow-ref doc:name="dw-check-script-is-valid-flow" doc:id="664ca186-44aa-4a5b-b532-bed5fad7ddf2" name="dw-check-script-is-valid-flow" />
+		<flow-ref doc:name="dw-list-tests-subflow" doc:id="def22f96-9a7b-48ca-8bab-c61539c454a5" name="dw-list-tests-subflow" />
+		<flow-ref doc:name="dw-evaluate-script-subflow" doc:id="b8944ae1-2103-4559-a3aa-3a7cf478e152" name="dw-evaluate-script-subflow" />
+		<error-handler>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="09559c14-32c1-425f-ac3b-30d8bde0409c">
+				<ee:transform doc:name="Set error detail" doc:id="f792f5c7-d5bd-47f5-bd41-698f628998d0">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload.error default {
+	"error": error
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[vars.httpStatus default 500]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="dw-check-challenge-number-flow" doc:id="f48620ce-2d71-4944-a384-5248b3b5616c">
+			<validation:is-true doc:name="check if challenge number is valid" doc:id="603922ef-1ece-4034-a3b4-ab3c79ec1e35" expression="#[vars.challengeNumber &gt;= 0 and vars.challengeNumber &lt;= vars.qtyOfChallenges]" message="Invalid challenge number" />
+			<error-handler>
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="20132266-5e1a-4501-a037-8aef8006bbdf" type="VALIDATION:INVALID_BOOLEAN">
+					<ee:transform doc:name="Set payload and httpStatus" doc:id="5b5a4ccf-45db-4051-bdd1-d09161f4d44e">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	error: error.errorMessage.payload.message
+}]]></ee:set-payload>
+						</ee:message>
+						<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[%dw 2.0
+output application/java
+---
+404 //TODO CHANGE RAML]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+	</flow>
+	<flow name="dw-check-script-is-valid-flow" doc:id="bdba53a1-22f8-4acc-aaf5-76afde671763">
+			<validation:is-true doc:name="dw has %dw 2.0 header" doc:id="7720cc89-2947-488d-9c88-fae4eb89969e" message="dw script must contain %dw 2.0 header" expression="#[payload contains(/%dw 2\.0/)]" />
+			<validation:is-true doc:name="dw has output application\json header" doc:id="0012e7ca-daa2-49c3-a835-d77796b0ca2c" expression="#[payload contains(/output application\/json/)]" message="dw script must contain output application/json header" />
+			<validation:is-true doc:name="dw contains ref to payload" doc:id="10aac9d2-d2c9-4eb7-80a6-a82d6fd07dea" expression='#[payload contains("payload")]' message="dw script must contain reference to payload" />
+			<error-handler>
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="3a4304b6-5694-485c-bfff-0a52c3a8f770" type="VALIDATION:INVALID_BOOLEAN">
+					<ee:transform doc:name="Set payload and httpStatus" doc:id="40761d05-68cd-4698-83c9-05f0c79bd0e8">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	error: error.errorMessage.payload.message
+}]]></ee:set-payload>
+						</ee:message>
+						<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[%dw 2.0
+output application/java
+---
+400]]></ee:set-variable>
+						
+</ee:variables>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+	</flow>
+	<sub-flow name="dw-list-tests-subflow" doc:id="3dafdd62-20fb-470b-9fef-267c5d2ebc69">
+		<file:list doc:name="List tests folder" doc:id="d26e0469-c23b-445c-b9e3-f08ed93e9492" directoryPath="${mule.home}/apps/${app.name}/tests" target="tests" />
+		<ee:transform doc:name="Set tests details" doc:id="08938f69-4dbb-4c24-8e55-549cbebb8692">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="testsDetails"><![CDATA[%dw 2.0
+output application/json
+---
+vars.tests.*attributes.*fileName map 
+    do {
+        var chDetails = $ match(/challenge-([0-9])+-test-([0-9])+.(input|output).(json)/)
+        ---
+         {
+            id: chDetails[1],
+            test: chDetails[2],
+            'type': chDetails[3],
+            format: chDetails[4],
+            path: "classpath://$($)"
+        }
+    } 
+]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="dw-evaluate-script-subflow" doc:id="50b4cd8e-4186-4527-b362-8e8b7fe0e637" >
+		<ee:transform doc:name="Set variables allTests and script" doc:id="d7e2ad84-8e3e-44b2-83a8-bf565a69afa4">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="allTests"><![CDATA[%dw 2.0
+output application/json
+---
+vars.tests.*attributes.*fileName map 
+    do {
+        var chDetails = $ match(/challenge-([0-9])+-test-([0-9])+.input.(.*)/)
+        ---
+         {
+            challengeId: chDetails[1],
+            testId: chDetails[2],
+            contentType: chDetails[3],
+            path: "classpath://tests/$($)"
+        }
+    } filter $.challengeId == vars.challengeNumber
+]]></ee:set-variable>
+				<ee:set-variable variableName="script"><![CDATA[%dw 2.0
+output text/plain
+---
+payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<parallel-foreach doc:name="Parallel For Each Test" doc:id="6252e77d-1466-4b26-a342-30f31dcb5605" collection="#[vars.allTests]">
+			<ee:transform doc:name="Set current test" doc:id="7767b004-2aa2-452d-bb36-36ca2774b74c">
+			<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+readUrl(payload.path, "application/$(payload.contentType)")
+]]></ee:set-payload>
+
+			</ee:message>
+			<ee:variables>
+					<ee:set-variable variableName="testId"><![CDATA[%dw 2.0
+output application/java
+---
+payload.testId]]></ee:set-variable>
+
+			</ee:variables>
+		</ee:transform>
+			<try doc:name="Try" doc:id="8172abe2-a0a1-4437-ad98-bee990ae7031">
+				<ee:dynamic-evaluate doc:name="Input Script" doc:id="3b3b4695-6c0f-4d01-8c98-bd4794ad99ce" expression="#[vars.script]" target="scriptOutput" />
+				<ee:transform doc:name="Compare current output to expected one" doc:id="0c32fdea-f228-4708-acac-061c345d6d30">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+import diff from dw::util::Diff
+output application/json
+
+var answer = readUrl("classpath://tests/challenge-$(vars.challengeNumber)-test-$(vars.testId)-output.json", "application/json")
+var comparison = diff(answer, vars.scriptOutput)
+---
+"test$(vars.testId)": {
+	(if (!comparison.'matches') {
+		status: "ASSERTION_ERROR",
+		testInput: payload,
+		expectedOutput: answer,
+		actualOutput: vars.scriptOutput
+	} else {
+		status: "OK"
+	})
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+				<error-handler>
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="cdbeb17e-4c45-4438-b5c9-a50ff42ccee6">
+						<ee:transform doc:name="Set error detail" doc:id="040ee6a1-2d3c-4a60-84d6-741b6d492b40">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+
+//TODO refactor
+var answer = readUrl("classpath://tests/challenge-$(vars.challengeNumber)-test-$(vars.testId)-output.json", "application/json")
+---
+"test$(vars.testId)": {
+	status: "SCRIPT_ERROR",
+	testInput: payload,
+	expectedOutput: answer,
+	actualOutput: vars.scriptOutput,
+	detail: error.description default error
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</on-error-continue>
+				</error-handler>
+			</try>
+		</parallel-foreach>
+		<ee:transform doc:name="Transform Payload to JSON" doc:id="a815b27a-2f44-4884-899e-d5767cd2d957">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+
+import fail from dw::Runtime
+
+var allTestsStatus = payload.*payload..*status default []
+
+fun areAllOK(status: Array) = isEmpty(status filter ($ contains ("ERROR")))
+
+fun nextSteps(status: Array) = 
+    if (!isEmpty(allTestsStatus)) {
+        nextSteps: 
+            (if (areAllOK(allTestsStatus)) 
+                "Please send your script to the given email."
+            else 
+                "At least one of the tests are not working for the given script. Fix and try again.")
+    }
+    else fail("Empty status array")
+---
+{
+    (payload.*payload map $)
+} 
+++
+nextSteps(allTestsStatus) ]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="httpStatus"><![CDATA[%dw 2.0
+output application/java
+
+//TODO refactor
+var allTestsStatus = payload.*payload..*status default []
+
+fun areAllOK(status: Array) = isEmpty(status filter ($ contains ("ERROR")))
+---
+if (areAllOK(allTestsStatus)) 200 else 400]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+	</sub-flow>
+</mule>

@@ -1,0 +1,82 @@
+#%RAML 1.0
+title: Mulesoft Meetups - Dataweave Challenge  
+
+/script/{challengeNumber}:
+  uriParameters:
+    challengeNumber:
+      description: Challenge identifier
+      type: number
+      example: 0
+  post:
+    description: Validate and test given dw script
+    body:
+      text/plain:
+        example: |
+          %dw 2.0
+          output application/json
+          ---
+          payload map upper($)
+    responses:
+      200:
+        body:
+          application/json:
+            example: |
+              {
+                "test1": {
+                  "status": "OK"
+                },
+                "test2": {
+                  "status": "OK"
+                },
+                "test3": {
+                  "status": "OK"
+                },
+                "nextSteps": "Please send your script to the given email."
+              }
+      400:
+        body:
+          application/json:
+            example: |
+              {
+                "test1": {
+                  "status": "ASSERTION_ERROR",
+                  "testInput": [
+                    "s",
+                    "str",
+                    "string"
+                  ],
+                  "expectedOutput": [
+                    "S",
+                    "STR",
+                    "STRING"
+                  ],
+                  "actualOutput": [
+                    "EXAMPLE",
+                    "EXAMPLE",
+                    "EXAMPLE"
+                  ]
+                },
+                "test2": {
+                  "status": "SCRIPT_ERROR",
+                  "detail": "\"Script '%dw 2.0\noutput application/json\n---\npayload map upper($$$)\n' has errors: \n\tUnable to resolve reference of: `$$$`. at 4 : 4\" evaluating expression: \"%dw 2.0\noutput application/json\n---\npayload map upper($$$)\n\"."
+                },
+                "test3": {
+                  "status": "OK"
+                },
+                "nextSteps": "At least one of the tests are not working for the given script. Fix and try again."
+              }
+      404:
+        body:
+          application/json:
+            example: |
+              {
+                "error": "Invalid challenge number"
+              }
+      500:
+        body:
+          application/json:
+            example: |
+              {
+                "error": {
+                }
+              }
